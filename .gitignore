@@ -1,0 +1,26 @@
+# Virtual environments
+.venv/
+.venv-fasttreeshap/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Benchmark outputs
+results/
+*.json
+
+!src/**/*.json
+
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.claude/
