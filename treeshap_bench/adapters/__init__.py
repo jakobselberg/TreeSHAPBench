@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from .fasttreeshap_adapter import FastTreeSHAPv1, FastTreeSHAPv2
+from .gpu_adapter import XGBoostCPUShapAdapter, XGBoostGPUShapAdapter
 from .shapiq_adapter import ShapiqAdapter, ShapiqAdapterSII
-from .stubs import GPUTreeShapAdapter, WoodelfAdapter
+from .stubs import WoodelfAdapter
 
 # Maps the CLI --adapter value to the adapter class.
 REGISTRY = {
@@ -13,7 +14,8 @@ REGISTRY = {
         FastTreeSHAPv2,
         ShapiqAdapter,
         ShapiqAdapterSII,
-        GPUTreeShapAdapter,
+        XGBoostGPUShapAdapter,
+        XGBoostCPUShapAdapter,
         WoodelfAdapter,
     )
 }

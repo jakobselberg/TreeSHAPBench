@@ -131,13 +131,19 @@ depth, so a deep forest will hang. The depth sweep in Section 4 shows exactly
 why.""")
 
 code("""# Install the Env-A stack (the package is already on PYTHONPATH from Section 1).
-# The pin on numpy<2 is the key constraint for fasttreeshap.
-!pip install -q 'numpy<2' 'fasttreeshap==0.1.6' 'shapiq==1.4.1' \\
-    scikit-learn xgboost lightgbm joblib pandas matplotlib
+# Two pins matter here:
+#   * numpy<2      — fasttreeshap 0.1.6 was built against numpy 1.x.
+#   * pandas<2.2   — Colab ships a pandas built for numpy 2; downgrading numpy
+#                    alone leaves that pandas mismatched. An UNPINNED `pandas`
+#                    won't be replaced (the requirement is already satisfied),
+#                    so we pin <2.2 to force a numpy-1.x-compatible build.
+!pip install -q 'numpy<2' 'pandas<2.2' 'fasttreeshap==0.1.6' 'shapiq==1.4.1' \\
+    scikit-learn xgboost lightgbm joblib matplotlib
 
 # NOTE: On Colab you do NOT need to restart the kernel here, because the
 # benchmark runs in a SUBPROCESS (next cell) that starts fresh and picks up
-# numpy<2 on its own. The notebook kernel itself never imports numpy<2.""")
+# numpy<2 / pandas<2.2 on its own. If the kernel had already imported numpy or
+# pandas before this cell, restart the runtime once and re-run from Section 1.""")
 
 code("""import os
 os.makedirs("results", exist_ok=True)
@@ -204,6 +210,50 @@ for depth in [3, 4, 5, 6, 8]:
         "--out", out,
     ], check=True)
 print("depth sweep done")""")
+
+# ---------------------------------------------------------------------------
+md("""## 4b. (Optional) GPU — GPUTreeShap via XGBoost's CUDA SHAP path
+
+**Requires a GPU runtime** (Runtime → Change runtime type → T4 GPU on Colab).
+
+GPUTreeShap has no Python package — it's a model-agnostic CUDA backend. The
+shap library's `GPUTreeExplainer` can drive it for RF/LightGBM/etc., but that
+requires building shap from source with CUDA. The zero-build path on Colab is
+XGBoost's own GPU predictor (`device="cuda"` + `pred_contribs`/`pred_interactions`),
+with GPUTreeShap as the backend — so this section benchmarks *that* path, which
+is XGBoost-only by virtue of the entry point (not a GPUTreeShap limitation). We
+anchor correctness against XGBoost's **CPU** SHAP, since both are XGBoost's own
+algorithm.
+
+Colab's default xgboost is CUDA-enabled, so no extra install is needed beyond a
+modern numpy — run this **before** Section 3's numpy<2 work or in a fresh
+runtime. The cell checks for a GPU first and skips cleanly if there isn't one.""")
+
+code("""import subprocess, sys, os
+
+# Detect a usable NVIDIA GPU.
+have_gpu = subprocess.run(["nvidia-smi"], capture_output=True).returncode == 0
+if not have_gpu:
+    print("⚠️ No GPU detected. Switch to a GPU runtime "
+          "(Runtime → Change runtime type → T4 GPU), then re-run this cell.")
+else:
+    info = subprocess.run(
+        ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    print(f"✅ GPU present: {info}")
+    os.makedirs("results", exist_ok=True)
+    # GPU target + CPU reference, XGBoost only. Larger sample count than the
+    # CPU-bound libraries since the GPU path is built for throughput.
+    subprocess.run([
+        sys.executable, "-m", "treeshap_bench.runner",
+        "--adapters", "gputreeshap_xgb", "xgboost_cpu_shap",
+        "--model", "xgboost", "--n-estimators", "200", "--max-depth", "8",
+        "--tasks", "sv", "interaction",
+        "--sv-samples", "2000", "--interaction-samples", "200", "--rounds", "3",
+        "--out", "results/envC_gpu.json",
+    ], check=True)
+    print("\\nGPU section done -> results/envC_gpu.json")""")
 
 # ---------------------------------------------------------------------------
 md("""## 5. Merge results and plot

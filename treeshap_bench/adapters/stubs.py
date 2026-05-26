@@ -3,6 +3,9 @@
 These exist to demonstrate that the interface is genuinely extensible and to
 give you a fill-in-the-blanks starting point. Each raises NotImplementedError
 with a pointer to what needs verifying, rather than guessing at an API.
+
+(GPUTreeShap previously lived here as a stub; it now has a real implementation
+in gpu_adapter.py via XGBoost's CUDA SHAP path.)
 """
 from __future__ import annotations
 
@@ -11,32 +14,6 @@ from typing import Any
 import numpy as np
 
 from ..core import ShapAdapter
-
-
-class GPUTreeShapAdapter(ShapAdapter):
-    """NVIDIA GPUTreeShap (https://github.com/rapidsai/gputreeshap).
-
-    NOTE: GPUTreeShap is a CUDA C++ library; in Python it is normally accessed
-    *through* XGBoost's / LightGBM's GPU predictor (``pred_interactions`` on a
-    GPU-resident model) rather than as a standalone pip package. It will not run
-    on a CPU-only Colab instance. Wire this up only on a CUDA box and decide
-    whether you're benchmarking the standalone library or the XGBoost GPU path —
-    they are different things and you should document which.
-    """
-
-    name = "gputreeshap"
-    library = "gputreeshap"
-    supported_tasks = ("sv", "interaction")
-
-    def _build_explainer(self, model: Any, task: str) -> Any:
-        raise NotImplementedError(
-            "GPUTreeShap requires a CUDA device and is typically invoked via "
-            "the model library's GPU predictor. Implement against your actual "
-            "GPU setup and remove this guard."
-        )
-
-    def _explain(self, X: np.ndarray) -> np.ndarray:  # pragma: no cover
-        raise NotImplementedError
 
 
 class WoodelfAdapter(ShapAdapter):

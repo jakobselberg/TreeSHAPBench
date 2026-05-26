@@ -87,5 +87,20 @@ Requirements / caveats:
 ## Adding a library
 
 Subclass `ShapAdapter`, implement `_build_explainer` + `_explain`, register in
-`adapters/__init__.py`. See `adapters/stubs.py` for GPUTreeShap and woodelf
-starting points (both currently raise `NotImplementedError` with TODOs).
+`adapters/__init__.py`. See `adapters/gpu_adapter.py` for a real example
+(GPUTreeShap via XGBoost's CUDA path) and `adapters/stubs.py` for the woodelf
+fill-in-the-blanks starting point.
+
+## GPU benchmark (GPUTreeShap)
+
+GPUTreeShap is a CUDA C++ library with no Python package. It's model-agnostic;
+shap's `GPUTreeExplainer` can drive it for RF/LightGBM/etc., but that needs shap
+compiled from source with CUDA. The zero-build path is XGBoost's own GPU
+predictor (`device="cuda"`), which uses GPUTreeShap as its backend. The
+`gputreeshap_xgb` adapter benchmarks that path — XGBoost-only by virtue of the
+entry point, not a GPUTreeShap limitation — with `xgboost_cpu_shap` as the
+correctness anchor. On Colab, pick a T4 GPU runtime and run Section 4b of
+`benchmark_colab.ipynb`; it detects the GPU and skips cleanly if absent. Results
+land in `results/envC_gpu.json` and merge with everything else. To cover
+RF/LightGBM on GPU, add a sibling adapter wrapping `shap.GPUTreeExplainer` once
+shap is built with CUDA.
