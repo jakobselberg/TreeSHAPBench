@@ -64,29 +64,30 @@ else:
           "pinned runtime, switch to the latest runtime version.")""")
 
 # ---------------------------------------------------------------------------
-md("""## 1. Get the harness code and install it
+md("""## 1. Get the harness code and put it on the path
 
-Clone your repo (or upload the `treeshap-bench/` folder via the Files panel),
-then **`pip install -e`** it. The editable install is what makes
-`python -m treeshap_bench.runner` work from the notebook's subprocess cells:
-without it, `-m` resolves the package name against the current working
-directory, which is fragile and breaks if the CWD isn't the package's parent.
-Installing registers the package on the environment path so it resolves from
-anywhere.""")
+Clone your repo (or upload/unzip the `treeshap-bench/` folder so it sits in the
+working directory), then add its root to `PYTHONPATH`. We deliberately do **not**
+`pip install` the package: editable installs can silently "succeed" without
+actually registering the package in a way a fresh subprocess picks up (a
+recurring Colab pain point). Putting the folder on `PYTHONPATH` is bulletproof
+by comparison — `!python ...` shell cells and `subprocess` calls both inherit
+the kernel's environment, so the runner resolves everywhere with no packaging
+machinery involved.""")
 
-code("""# Set this to your repo URL, or leave "" and upload the treeshap-bench/ folder
-# via the Files panel so it sits next to this notebook.
+code("""# Set this to your repo URL, or leave "" and upload/unzip the treeshap-bench/
+# folder so it sits next to this notebook.
 REPO_URL = ""  # e.g. "https://github.com/<you>/treeshap-bench.git"
 
-import os, subprocess, sys
+import os, sys, subprocess
 
 if REPO_URL:
     if not os.path.isdir("treeshap-bench"):
         subprocess.run(["git", "clone", "--depth", "1", REPO_URL, "treeshap-bench"], check=True)
     repo_dir = "treeshap-bench"
 else:
-    # Find the repo root: it's the directory that CONTAINS the importable
-    # `treeshap_bench` package (i.e. has treeshap_bench/__init__.py under it).
+    # The repo root is whichever candidate CONTAINS the importable package,
+    # i.e. has treeshap_bench/__init__.py directly under it.
     candidates = [".", "treeshap-bench", "treeshap_bench"]
     repo_dir = next(
         (c for c in candidates
@@ -94,21 +95,30 @@ else:
         None,
     )
     assert repo_dir is not None, (
-        "Could not find the treeshap_bench package. Upload the treeshap-bench/ "
-        "folder via the Files panel (it must contain treeshap_bench/__init__.py), "
-        "or set REPO_URL above."
+        "Could not find the treeshap_bench package.\\n"
+        f"Working dir contents: {sorted(os.listdir('.'))}\\n"
+        "Upload/unzip the treeshap-bench/ folder here (it must contain "
+        "treeshap_bench/__init__.py), or set REPO_URL above."
     )
 
-# Editable install. --no-deps here so we control the numpy<2 pin in Section 2;
-# the package's own deps (numpy/pandas/sklearn/joblib) come with the Env-A install.
-print(f"Installing package from: {os.path.abspath(repo_dir)}")
-subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-e", repo_dir, "--no-deps"], check=True)
+REPO_ROOT = os.path.abspath(repo_dir)
 
-# Verify it resolves as a subprocess module (this is exactly what the runner cells do).
+# Put the package root on PYTHONPATH for the kernel AND every child process.
+# (! shell cells and subprocess.run both inherit os.environ from the kernel.)
+sys.path.insert(0, REPO_ROOT)
+os.environ["PYTHONPATH"] = REPO_ROOT + os.pathsep + os.environ.get("PYTHONPATH", "")
+
+# Verify exactly the way the runner cells will invoke it: as a subprocess module.
 chk = subprocess.run([sys.executable, "-m", "treeshap_bench.runner", "--help"],
                      capture_output=True, text=True)
-assert chk.returncode == 0, f"Runner not importable:\\n{chk.stderr}"
-print("✅ treeshap_bench.runner resolves correctly.")""")
+assert chk.returncode == 0, (
+    "Runner still not importable.\\n"
+    f"REPO_ROOT = {REPO_ROOT}\\n"
+    f"contents  = {sorted(os.listdir(REPO_ROOT)) if os.path.isdir(REPO_ROOT) else 'MISSING'}\\n"
+    f"PYTHONPATH = {os.environ.get('PYTHONPATH')}\\n"
+    f"stderr:\\n{chk.stderr}"
+)
+print(f"✅ treeshap_bench.runner resolves. REPO_ROOT={REPO_ROOT}")""")
 
 # ---------------------------------------------------------------------------
 md("""## 2. Environment A — fasttreeshap v1/v2 + released shapiq
@@ -120,10 +130,10 @@ Keep `--max-depth` small (≤4): released shapiq's SV path is super-linear in tr
 depth, so a deep forest will hang. The depth sweep in Section 4 shows exactly
 why.""")
 
-code("""# Install the Env-A stack (the package itself is already installed from Section 1).
+code("""# Install the Env-A stack (the package is already on PYTHONPATH from Section 1).
 # The pin on numpy<2 is the key constraint for fasttreeshap.
 !pip install -q 'numpy<2' 'fasttreeshap==0.1.6' 'shapiq==1.4.1' \\
-    scikit-learn xgboost lightgbm joblib
+    scikit-learn xgboost lightgbm joblib pandas matplotlib
 
 # NOTE: On Colab you do NOT need to restart the kernel here, because the
 # benchmark runs in a SUBPROCESS (next cell) that starts fresh and picks up
