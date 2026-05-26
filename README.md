@@ -63,6 +63,11 @@ fact that each runner call is a **subprocess**: a subprocess sees whatever is
 pip-installed when it launches, so you swap the kernel's install state between
 cells instead of building separate environments.
 
+Section 1 puts the package on `PYTHONPATH` (rather than `pip install`-ing it).
+Editable installs can silently fail to register on Colab; a `PYTHONPATH` entry
+is inherited by both `!shell` cells and `subprocess` calls, so the runner
+resolves everywhere with no packaging machinery. Then:
+
 1. Install `numpy<2` + fasttreeshap + `shapiq==1.4.1`, run them (subprocess
    picks up numpy<2 on its own — no kernel restart needed).
 2. `pip install -U git+...shapiq` to replace 1.4.1 in place, run shapiq only.

@@ -1,4 +1,5 @@
 """Build the thin analysis/orchestration notebook."""
+import os
 import nbformat as nbf
 
 nb = nbf.v4.new_notebook()
@@ -177,6 +178,6 @@ nb["metadata"] = {
     "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
     "language_info": {"name": "python", "version": "3.10"},
 }
-with open("/home/claude/treeshap_bench/analysis.ipynb", "w") as f:
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "analysis.ipynb"), "w") as f:
     nbf.write(nb, f)
 print("notebook written with", len(cells), "cells")
